@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import myStore from '../my/index';
+import myStore from '../my/index'
 
 Vue.use(myStore)
 
@@ -7,11 +7,13 @@ export default new myStore.Store({
   state: {
     data: 1
   },
-  mutations: {
-  },
-  actions: {
-  },
-  modules: {
+  mutations: {},
+  actions: {},
+  modules: {},
+  getters: {
+    pushdata: (state: any, data: any) => {
+      return `data为${state.data}`
+    }
   }
 })
 
@@ -31,4 +33,3 @@ export default new myStore.Store({
 //   modules: {
 //   }
 // })
-
