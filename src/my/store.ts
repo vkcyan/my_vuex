@@ -2,16 +2,17 @@ import { VueConstructor } from 'vue'
 
 export class Store {
   actions: any
-  mutations: any
+  _mutations: any
   _getters: any
   _vm: any
   constructor(options: any) {
     let state = options.state
     this.actions = options.actions
-    this.mutations = options.mutations
+    this._mutations = Object.create(null)
     this._getters = Object.create(null)
     register(this, {
-      getters: options.getters
+      getters: options.getters,
+      mutations: options.mutations
     })
     processState(this, state)
     setTimeout(() => {
@@ -22,27 +23,25 @@ export class Store {
     // vuex的值发生变化的时候自动更新页面
     return this._vm.$data.$$mystore
   }
+  commit(type: string, payload: any) {
+    const commitFun = this._mutations[type]
+    commitFun(payload)
+  }
 }
 
 function register(store: any, options: any) {
   // 注册getters,这里遍历gettets对象,将 键 函数都传值到处理函数
   Object.keys(options.getters).forEach((type: string) => {
-    // 实例 类型 函数
-    registerGetter(store, type, options.getters[type])
+    store._getters[type] = () => {
+      return options.getters[type](store.state)
+    }
   })
-}
-
-/**
- * getter 注册中心
- * @param store 实例
- * @param type 类型
- * @param rawGetter 函数
- */
-function registerGetter(store: any, type: string, rawGetter: Function) {
-  // 传过来的处理函数挂载到_getters上面 并且函数返回的同时传入state参数
-  store._getters[type] = () => {
-    return rawGetter(store.state)
-  }
+  // 注册mutations
+  Object.keys(options.mutations).forEach((type: string) => {
+    store._mutations[type] = (payload: any) => {
+      options.mutations[type].call(store, store.state, payload)
+    }
+  })
 }
 
 /**
@@ -62,7 +61,6 @@ function processState(store: any, state: object) {
       enumerable: true,
       get: () => store._vm[key]
     })
-    console.log(computed)
   })
   store._vm = new _Vue({
     // 使用vue 自带的响应式进行vuex的数据监听

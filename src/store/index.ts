@@ -7,7 +7,12 @@ export default new myStore.Store({
   state: {
     data: 1
   },
-  mutations: {},
+  mutations: {
+    changeData(state: any, data: any) {
+      console.log(this);
+      state.data = data
+    }
+  },
   actions: {},
   modules: {},
   getters: {
