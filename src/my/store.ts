@@ -1,31 +1,58 @@
 import { VueConstructor } from 'vue'
 
 export class Store {
-  actions: any
+  _actions: any
   _mutations: any
   _getters: any
   _vm: any
+  _committing: Boolean
   constructor(options: any) {
     let state = options.state
-    this.actions = options.actions
+    this._committing = false
+    this._actions = Object.create(null)
     this._mutations = Object.create(null)
     this._getters = Object.create(null)
     register(this, {
       getters: options.getters,
-      mutations: options.mutations
+      mutations: options.mutations,
+      actions: options.actions
     })
     processState(this, state)
-    setTimeout(() => {
-      state.data = 'my vuex'
-    }, 1000)
+    // 防止this被重写.这里强制commit指向当前this
+    const storeThis = this
+    let { commit, dispatch } = this
+    // 固定this
+    this.commit = (type, payload) => {
+      return commit.call(storeThis, type, payload)
+    }
+    this.dispatch = (type, payload) => {
+      return dispatch.call(storeThis, type, payload)
+    }
   }
   get state() {
     // vuex的值发生变化的时候自动更新页面
     return this._vm.$data.$$mystore
   }
+
+  // 实现commit提交state
   commit(type: string, payload: any) {
     const commitFun = this._mutations[type]
-    commitFun(payload)
+    this._withCommit(() => {
+      commitFun(payload)
+    })
+  }
+
+  // 实现dispatch异步提交state
+  dispatch(type: any, payload: any) {
+    const handler = this._actions[type]
+    console.log(payload)
+    handler(payload)
+  }
+
+  _withCommit(fn: Function) {
+    this._committing = true
+    fn()
+    this._committing = false
   }
 }
 
@@ -39,7 +66,23 @@ function register(store: any, options: any) {
   // 注册mutations
   Object.keys(options.mutations).forEach((type: string) => {
     store._mutations[type] = (payload: any) => {
-      options.mutations[type].call(store, store.state, payload)
+      // options.mutations[type].call(store, store.state, payload)
+      options.mutations[type](store.state, payload)
+    }
+  })
+  // 注册actions
+  Object.keys(options.actions).forEach((type: string) => {
+    store._actions[type] = (payload: any) => {
+      options.actions[type].call(
+        store,
+        {
+          dispatch: store.dispatch,
+          commit: store.commit,
+          getters: store.getters,
+          state: store.state
+        },
+        payload
+      )
     }
   })
 }
@@ -68,7 +111,32 @@ function processState(store: any, state: object) {
       $$mystore: state
     },
     computed
+    // watch: {
+    //   $$mystore: {
+    //     handler: function() {
+    //       console.log('变化')
+    //       throw new Error('只允许mutation修改')
+    //     },
+    //     deep: true
+    //   }
+    // }
   })
+  store._vm.$watch(
+    function(this: any) {
+      return (this as any)._data.$$mystore
+    },
+    () => {
+      if (!store._committing) {
+        console.log(store._committing)
+
+        throw new Error('state 只能通过mutation修改')
+      }
+    },
+    {
+      deep: true,
+      sync: true
+    }
+  )
 }
 
 /***

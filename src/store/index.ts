@@ -9,11 +9,18 @@ export default new myStore.Store({
   },
   mutations: {
     changeData(state: any, data: any) {
-      console.log(this);
       state.data = data
     }
   },
-  actions: {},
+  actions: {
+    asnycChangeData({ commit, state }: any, data: any) {
+      console.log('获取到了参数', data)
+      setTimeout(() => {
+        commit('changeData', data)
+        // state.data = 312312312312 // 会报错
+      }, 3000)
+    }
+  },
   modules: {},
   getters: {
     pushdata: (state: any, data: any) => {
